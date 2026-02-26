@@ -15,31 +15,35 @@ pipeline {
             steps {
                 sh '''
                 docker network create app-network || true
+
                 docker rm -f backend1 backend2 || true
-                
+
                 docker run -d --name backend1 --network app-network backend-app
                 docker run -d --name backend2 --network app-network backend-app
-                
-                # wait for containers to be ready
-                sleep 3
                 '''
+                
+                // Give Docker time to register containers
+                sh 'sleep 3'
             }
         }
 
         stage('Deploy NGINX Load Balancer') {
             steps {
                 sh '''
+                docker pull nginx
                 docker rm -f nginx-lb || true
-                
+
                 docker run -d \
                   --name nginx-lb \
                   --network app-network \
                   -p 80:80 \
                   nginx
+                '''
 
-                # wait before copying config
-                sleep 2
+                // Wait for nginx to fully start
+                sh 'sleep 2'
 
+                sh '''
                 docker cp nginx/default.conf nginx-lb:/etc/nginx/conf.d/default.conf
                 docker exec nginx-lb nginx -s reload
                 '''
